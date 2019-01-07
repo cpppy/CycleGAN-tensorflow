@@ -3,11 +3,14 @@ import os
 import tensorflow as tf
 tf.set_random_seed(19)
 from model import cyclegan
+# parse = argparseAuguementParser
+# parse.add_arguement('-- ',)
+# 在命令行使用类似 tensorboard --logdir=./logs运行程序和添加指定的参数
 
 parser = argparse.ArgumentParser(description='')
-parser.add_argument('--dataset_dir', dest='dataset_dir', default='horse2zebra', help='path of the dataset')
-parser.add_argument('--epoch', dest='epoch', type=int, default=200, help='# of epoch')
-parser.add_argument('--epoch_step', dest='epoch_step', type=int, default=100, help='# of epoch to decay lr')
+parser.add_argument('--dataset_dir', dest='dataset_dir', default='horse2zebra', help='path of the dataset')  # dest 命令行输入后对应的解析后的参数名称
+parser.add_argument('--epoch', dest='epoch', type=int, default=200, help='# of epoch')  # 命令行参数应该转换成的类型
+parser.add_argument('--epoch_step', dest='epoch_step', type=int, default=100, help='# of epoch to decay lr')  # 不指定参数时的默认值
 parser.add_argument('--batch_size', dest='batch_size', type=int, default=1, help='# images in batch')
 parser.add_argument('--train_size', dest='train_size', type=int, default=1e8, help='# images used to train')
 parser.add_argument('--load_size', dest='load_size', type=int, default=286, help='scale images to this size')
@@ -42,12 +45,11 @@ def main(_):
     if not os.path.exists(args.test_dir):
         os.makedirs(args.test_dir)
 
-    tfconfig = tf.ConfigProto(allow_soft_placement=True)
-    tfconfig.gpu_options.allow_growth = True
+    tfconfig = tf.ConfigProto(allow_soft_placement=True)  # 允许GPU无法计算时放到CPU上
+    tfconfig.gpu_options.allow_growth = True  # 按需分配显存
     with tf.Session(config=tfconfig) as sess:
-        model = cyclegan(sess, args)
-        model.train(args) if args.phase == 'train' \
-            else model.test(args)
+        model = cyclegan(sess, args)  # 定义模型
+        model.train(args) if args.phase == 'train' else model.test(args)
 
 if __name__ == '__main__':
     tf.app.run()

@@ -9,16 +9,19 @@ from utils import *
 def batch_norm(x, name="batch_norm"):
     return tf.contrib.layers.batch_norm(x, decay=0.9, updates_collections=None, epsilon=1e-5, scale=True, scope=name)
 
+# https://blog.csdn.net/liuxiao214/article/details/81037416
+# 生成结果主要依赖于某个图像实例，所以对整个batch归一化不适合图像风格化中，因而对HW做归一化。可以加速模型收敛
 def instance_norm(input, name="instance_norm"):
     with tf.variable_scope(name):
         depth = input.get_shape()[3]
         scale = tf.get_variable("scale", [depth], initializer=tf.random_normal_initializer(1.0, 0.02, dtype=tf.float32))
         offset = tf.get_variable("offset", [depth], initializer=tf.constant_initializer(0.0))
+        # 求对应维度的均值和方差 keep_dims表示保持维度,则后续操作在对应的维度上
         mean, variance = tf.nn.moments(input, axes=[1,2], keep_dims=True)
         epsilon = 1e-5
-        inv = tf.rsqrt(variance + epsilon)
+        inv = tf.rsqrt(variance + epsilon)  # 计算平方根的倒数
         normalized = (input-mean)*inv
-        return scale*normalized + offset
+        return scale*normalized + offset  # 维度（batch_size,h,w,1）
 
 def conv2d(input_, output_dim, ks=4, s=2, stddev=0.02, padding='SAME', name="conv2d"):
     with tf.variable_scope(name):
@@ -28,6 +31,7 @@ def conv2d(input_, output_dim, ks=4, s=2, stddev=0.02, padding='SAME', name="con
 
 def deconv2d(input_, output_dim, ks=4, s=2, stddev=0.02, name="deconv2d"):
     with tf.variable_scope(name):
+        # 反卷积--将input填充，然后做卷积
         return slim.conv2d_transpose(input_, output_dim, ks, s, padding='SAME', activation_fn=None,
                                     weights_initializer=tf.truncated_normal_initializer(stddev=stddev),
                                     biases_initializer=None)

@@ -4,6 +4,13 @@ from ops import *
 from utils import *
 
 
+"""
+判别器
+生成器
+转换器
+
+"""
+# 判别器
 def discriminator(image, options, reuse=False, name="discriminator"):
 
     with tf.variable_scope(name):
@@ -12,7 +19,7 @@ def discriminator(image, options, reuse=False, name="discriminator"):
             tf.get_variable_scope().reuse_variables()
         else:
             assert tf.get_variable_scope().reuse is False
-
+        # 默认 4*4 步长为2 填充为1
         h0 = lrelu(conv2d(image, options.df_dim, name='d_h0_conv'))
         # h0 is (128 x 128 x self.df_dim)
         h1 = lrelu(instance_norm(conv2d(h0, options.df_dim*2, name='d_h1_conv'), 'd_bn1'))
@@ -25,7 +32,7 @@ def discriminator(image, options, reuse=False, name="discriminator"):
         # h4 is (32 x 32 x 1)
         return h4
 
-
+# 生成器-unet
 def generator_unet(image, options, reuse=False, name="generator"):
 
     dropout_rate = 0.5 if options.is_training else 1.0
@@ -90,7 +97,7 @@ def generator_unet(image, options, reuse=False, name="generator"):
 
         return tf.nn.tanh(d8)
 
-
+# 生成器-resnet，默认采用
 def generator_resnet(image, options, reuse=False, name="generator"):
 
     with tf.variable_scope(name):
@@ -104,19 +111,26 @@ def generator_resnet(image, options, reuse=False, name="generator"):
             p = int((ks - 1) / 2)
             y = tf.pad(x, [[0, 0], [p, p], [p, p], [0, 0]], "REFLECT")
             y = instance_norm(conv2d(y, dim, ks, s, padding='VALID', name=name+'_c1'), name+'_bn1')
+            # tf.pad(input, paddings, name=None) 以下表示第一个维度不加，第二个维度前加p个0后加p个0
             y = tf.pad(tf.nn.relu(y), [[0, 0], [p, p], [p, p], [0, 0]], "REFLECT")
             y = instance_norm(conv2d(y, dim, ks, s, padding='VALID', name=name+'_c2'), name+'_bn2')
             return y + x
 
         # Justin Johnson's model from https://github.com/jcjohnson/fast-neural-style/
-        # The network with 9 blocks consists of: c7s1-32, d64, d128, R128, R128, R128,
-        # R128, R128, R128, R128, R128, R128, u64, u32, c7s1-3
+        # 编码器
+        # [batch_size,262,262,dim]
         c0 = tf.pad(image, [[0, 0], [3, 3], [3, 3], [0, 0]], "REFLECT")
+        # [batch_size,256,256,dim]
         c1 = tf.nn.relu(instance_norm(conv2d(c0, options.gf_dim, 7, 1, padding='VALID', name='g_e1_c'), 'g_e1_bn'))
+        # [batch_size,128,128,dim*2]
+        # 注意slim框架的卷积维度计算不是四舍五入，而是直接去掉
         c2 = tf.nn.relu(instance_norm(conv2d(c1, options.gf_dim*2, 3, 2, name='g_e2_c'), 'g_e2_bn'))
+        # [batch_size,64,64,dim*4]
         c3 = tf.nn.relu(instance_norm(conv2d(c2, options.gf_dim*4, 3, 2, name='g_e3_c'), 'g_e3_bn'))
         # define G network with 9 resnet blocks
+        # [batch_size,64,64,dim*4]
         r1 = residule_block(c3, options.gf_dim*4, name='g_r1')
+        # [batch_size,64,64,dim]
         r2 = residule_block(r1, options.gf_dim*4, name='g_r2')
         r3 = residule_block(r2, options.gf_dim*4, name='g_r3')
         r4 = residule_block(r3, options.gf_dim*4, name='g_r4')
@@ -124,8 +138,10 @@ def generator_resnet(image, options, reuse=False, name="generator"):
         r6 = residule_block(r5, options.gf_dim*4, name='g_r6')
         r7 = residule_block(r6, options.gf_dim*4, name='g_r7')
         r8 = residule_block(r7, options.gf_dim*4, name='g_r8')
+        # [batch_size, 64, 64, dim]
         r9 = residule_block(r8, options.gf_dim*4, name='g_r9')
-
+        # 解码器
+        # 反卷积
         d1 = deconv2d(r9, options.gf_dim*2, 3, 2, name='g_d1_dc')
         d1 = tf.nn.relu(instance_norm(d1, 'g_d1_bn'))
         d2 = deconv2d(d1, options.gf_dim, 3, 2, name='g_d2_dc')
@@ -135,14 +151,14 @@ def generator_resnet(image, options, reuse=False, name="generator"):
 
         return pred
 
-
+# 绝对值误差
 def abs_criterion(in_, target):
     return tf.reduce_mean(tf.abs(in_ - target))
 
-
+# 均方误差
 def mae_criterion(in_, target):
     return tf.reduce_mean((in_-target)**2)
 
-
+# sigmoid激活函数计算多分类问题，比如一张图片识别老鼠和蛙儿子
 def sce_criterion(logits, labels):
     return tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=logits, labels=labels))
