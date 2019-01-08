@@ -11,7 +11,7 @@ from utils import *
 
 
 """
-
+目标导向：
 1.鉴别器必须允许所有相应类别的原始图像，即对应输出置1；
 2.鉴别器必须拒绝所有想要愚弄过关的生成图像，即对应输出置0；
 3.生成器必须使鉴别器允许通过所有的生成图像，来实现愚弄操作；
@@ -170,7 +170,7 @@ class cyclegan(object):
                 print(" [!] Load failed...")
 
         for epoch in range(args.epoch):
-            # 获取通过正则得到的文件列表
+            # 获取通过正则得到的图片文件列表
             dataA = glob('./datasets/{}/*.*'.format(self.dataset_dir + '/trainA'))
             dataB = glob('./datasets/{}/*.*'.format(self.dataset_dir + '/trainB'))
             # 随机打乱数据
@@ -182,10 +182,10 @@ class cyclegan(object):
 
             for idx in range(0, batch_idxs):
                 # 数据预处理
-                # 抽取每一个batch的AB的数据组成一个对应的tuple的列表
+                # 抽取每一个batch的AB的数据组成一个对应的tuple，tuple里是两个列表
                 batch_files = list(zip(dataA[idx * self.batch_size:(idx + 1) * self.batch_size],
                                        dataB[idx * self.batch_size:(idx + 1) * self.batch_size]))
-                # 加载数据
+                # 加载数据，batch_files是一个tuple，里面是两个列表
                 batch_images = [load_train_data(batch_file, args.load_size, args.fine_size) for batch_file in batch_files]
                 batch_images = np.array(batch_images).astype(np.float32)
 
@@ -208,7 +208,7 @@ class cyclegan(object):
                 counter += 1
                 print(("Epoch: [%2d] [%4d/%4d] time: %4.4f" % (
                     epoch, idx, batch_idxs, time.time() - start_time)))
-                # 100次保存一个生成器的输出
+                # 100次保存一个生成器的输出样本
                 if np.mod(counter, args.print_freq) == 1:
                     self.sample_model(args.sample_dir, epoch, idx)
                 # 1000次 保存一次模型

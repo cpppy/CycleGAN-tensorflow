@@ -9,9 +9,11 @@ import numpy as np
 import copy
 try:
     _imread = scipy.misc.imread
+    # scipy.misc.imread（name, flatten=False, mode=None）
+    # 读取图片为array
 except AttributeError:
     from imageio import imread as _imread
-
+# 提供了打印出任何python数据结构类和方法
 pp = pprint.PrettyPrinter()
 
 get_stddev = lambda x, k_h, k_w: 1/math.sqrt(k_w*k_h*x.get_shape()[-1])
@@ -33,8 +35,9 @@ class ImagePool(object):
             self.num_img += 1
             return image
         if np.random.rand() > 0.5:
+            # 随机抽取
             idx = int(np.random.rand()*self.maxsize)
-            tmp1 = copy.copy(self.images[idx])[0]
+            tmp1 = copy.copy(self.images[idx])[0]  #浅复制
             self.images[idx][0] = image[0]
             idx = int(np.random.rand()*self.maxsize)
             tmp2 = copy.copy(self.images[idx])[1]
@@ -46,30 +49,32 @@ class ImagePool(object):
 def load_test_data(image_path, fine_size=256):
     img = imread(image_path)
     img = scipy.misc.imresize(img, [fine_size, fine_size])
-    img = img/127.5 - 1
+    img = img/127.5 - 1  # 第一种是对图像进行归一化，范围为[0, 1]，第二种也是对图像进行归一化
     return img
 
 def load_train_data(image_path, load_size=286, fine_size=256, is_testing=False):
     img_A = imread(image_path[0])
     img_B = imread(image_path[1])
     if not is_testing:
+        # scipy.misc.imresize() 输入数组调整图片大小，输入一个小于1，按比例输出，输出一个默认按照百分比
+        # 接下来的代码随机抽取了一段距离的数据
         img_A = scipy.misc.imresize(img_A, [load_size, load_size])
         img_B = scipy.misc.imresize(img_B, [load_size, load_size])
-        h1 = int(np.ceil(np.random.uniform(1e-2, load_size-fine_size)))
+        h1 = int(np.ceil(np.random.uniform(1e-2, load_size-fine_size)))  # 返回输入值的上限，即不大于x的最大整数
         w1 = int(np.ceil(np.random.uniform(1e-2, load_size-fine_size)))
         img_A = img_A[h1:h1+fine_size, w1:w1+fine_size]
         img_B = img_B[h1:h1+fine_size, w1:w1+fine_size]
 
-        if np.random.random() > 0.5:
-            img_A = np.fliplr(img_A)
+        if np.random.random() > 0.5:  # random产生一个值，rand产生一个数组或者形状的序列
+            img_A = np.fliplr(img_A)  # 左右翻转
             img_B = np.fliplr(img_B)
     else:
         img_A = scipy.misc.imresize(img_A, [fine_size, fine_size])
         img_B = scipy.misc.imresize(img_B, [fine_size, fine_size])
 
-    img_A = img_A/127.5 - 1.
+    img_A = img_A/127.5 - 1.  # 第一种是对图像进行归一化，范围为[0, 1]，第二种也是对图像进行归一化[-1,1]
     img_B = img_B/127.5 - 1.
-
+    # 第三个维度上做连接
     img_AB = np.concatenate((img_A, img_B), axis=2)
     # img_AB shape: (fine_size, fine_size, input_c_dim + output_c_dim)
     return img_AB
